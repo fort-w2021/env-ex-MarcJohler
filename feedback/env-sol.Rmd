@@ -1,0 +1,56 @@
+<!--
+Knitten Sie dieses File in RStudio zur besseren Lesbarkeit, bitte...
+-->
+
+```{r, child = "env-ex.Rmd"}
+```
+
+----------------------------------------------------
+
+### Lösung:
+
+a) 
+
+* alle Objekte in `environment` müssen Namen haben, Listen können unbenamte Einträge haben.
+* Objekte in einem `environment` haben keine Reihenfolge/Topologie, Einträge in einer Liste schon.
+* Jedes `environment` hat eine Elternumgebung
+* `environment`s haben *reference semantics*: D.h. das im `environment` hinterlegte *binding* eines Symbols (also: des Namens einer Variable) an einen Wert wird nur über den Speicherort dieses Werts repräsentiert (also: ein bestimmtes Symbol verweist auf -- *referenziert* -- eine Adresse im Speicher). Das heißt:
+    - ein und das selbe Objekt/der selbe Wert kann Element mehrer `environments` sein, unter möglicherweise unterschiedlichen Namen die aber eben alle den selben Speicherort referenzieren! 
+    - Modifikation eines `environment` erzeugt keine Kopie der im `environment` an Symbole gebundenen Werte (also: kein *copy-on-modify* wie bei anderen R Objekten).
+
+b) 
+
+In der Umgebung aus der sie aufgerufen wurden, siehe `?ls` bzw. `?rm`.
+
+c) 
+
+Siehe `help("<-"), help("<<-")`. 
+
+`<-` legt eine neue `binding` (eine Verknüpfung zwischen einem Symbol für eine Variable und dem Speicherort wo der Wert der Variable ) in der Umgebung in der `<-` aufgerufen wurde an, bzw. ersetzt eine alte Zuweisung für die Variable auf der linken Seite. 
+
+Das Verhalten von `<<-` hängt davon ab ob/wo eine Variable durch das Symbol auf der linken Seite bereits definiert ist. Falls die Variable in der aufrufenden Umgebung nicht definiert ist, sucht `<<-` die Vorfahrenumgebungen der aufrufenden Umgebung ab und ersetzt die Zuweisung in der ersten Vorfahrenumgebung in der die Variable definiert ist. Ist sie nirgends definiert (oder bereits bestehende `binding`s sind `locked`, also nicht überschreibbar) so wird eine neue Variable im `.GlobalEnv` angelegt.
+
+d)
+
+Mit Rekursion (Funktion `anywhere()` ruft sich immer wieder selbst auf):
+```{r, def_anywhere, code = readLines("env-anywhere-def.R"), echo = FALSE}
+```
+Äquivalent ohne Rekursion:
+```{r, def_anywhere_sequential, eval=FALSE}
+anywhere <- function(name, env = parent.frame()) {
+  checkmate::assert_string(name)
+  env <- pryr:::to_env(env)
+  result <- list()
+  while (!identical(env, emptyenv())) {
+    if (exists(name, env, inherits = FALSE)) {
+      result <- append(result, env)
+    }
+    env <- parent.env(env)
+  }
+  result
+}
+```
+
+```{r, test-anywhere, eval = TRUE, code=readLines("test-env-anywhere.R")}
+```
+Sie fragen vielleicht warum hier auch eine Variable "`t`" gefunden wird, die in der Umgebung, die mit dem `base`-Paket assoziiert ist, liegt...? Da haben wir doch gar nix angelegt...? Das ist die Funktion mit der Matrizen und Vektoren transponiert werden! 
